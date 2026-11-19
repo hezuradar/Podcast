@@ -4,7 +4,6 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import {
-  attachDemoTranscript,
   createProject,
   deleteProject,
   saveDocument,
@@ -49,14 +48,5 @@ export async function saveDocumentAction(id: string, doc: EditDoc, expectedVersi
     .object({ id: idSchema, doc: docSchema, expectedVersion: z.number().int().min(0) })
     .safeParse({ id, doc, expectedVersion });
   if (!parsed.success) return { ok: false, reason: "not_found" };
-  const result = await saveDocument(parsed.data.id, parsed.data.doc, parsed.data.expectedVersion);
-  if (result.ok) revalidatePath("/");
-  return result;
-}
-
-/** Fake mode: pretends the uploaded file was transcribed by attaching the demo transcript. */
-export async function attachDemoTranscriptAction(id: string): Promise<void> {
-  await attachDemoTranscript(idSchema.parse(id));
-  revalidatePath(`/projects/${id}`);
-  revalidatePath("/");
+  return saveDocument(parsed.data.id, parsed.data.doc, parsed.data.expectedVersion);
 }

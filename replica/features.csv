@@ -1,18 +1,18 @@
 feature,area,priority,original,clone,notes
 List of projects and create a new project,projects,must,yes,yes,S01; delete with confirmation; in-memory until backend
-Upload an audio file to a project (drag or Add button),media,must,yes,partial,"S02; drag/choose + validation done; file is not stored yet, demo transcript attached"
-Record audio in the browser with record pause stop,recording,must,yes,no,S03; asks for microphone permission
-Automatic transcript with word-level timestamps,transcript,must,yes,partial,uploads need a manual Transcribe click; recordings are automatic; demo transcript with synthetic timings; Whisper comes with backend
-Choose transcript language (EN FR DE IT PT ES),transcript,must,yes,no,S04
+Upload an audio file to a project (drag or Add button),media,must,yes,yes,"streamed to disk, 5 GB limit, tested with curl and in the editor"
+Record audio in the browser with record pause stop,recording,must,yes,partial,MediaRecorder record/pause/stop + upload built; not tested with a real microphone in the automated run
+Automatic transcript with word-level timestamps,transcript,must,yes,yes,faster-whisper small on CPU; tested end to end
+Choose transcript language (EN FR DE IT PT ES),transcript,must,yes,yes,selector in the Add panel
 Clicking a word moves the playhead there,editor,must,yes,yes,S05
 Highlight the current word during playback,editor,must,yes,yes,S05; assumed from the playhead link; driven by the playback clock
 Delete text to delete the audio,editor,must,yes,yes,non-destructive; EDL tested
 Cut copy and paste text to move audio,editor,must,yes,yes,keyboard and toolbar
 Undo and redo,editor,must,yes,yes,not documented but expected in a text editor; 200 steps
 Correct a word without changing the audio,editor,must,yes,yes,S06; pencil icon; S06 popover from the toolbar
-Play the edited project with no gaps between cuts,editor,must,yes,partial,"clock only, no audio yet"
-Export the edited audio as MP3 and WAV,export,must,yes,no,S11
-Autosave the project,projects,must,yes,yes,"assumed; not documented; 800 ms debounce, version check; in-memory store"
+Play the edited project with no gaps between cuts,editor,must,yes,yes,Web Audio scheduling of the EDL
+Export the edited audio as MP3 and WAV,export,must,yes,yes,ffmpeg render; MP3 verified by re-transcribing the export
+Autosave the project,projects,must,yes,yes,SQLite with version check
 Speaker detection with labels,transcript,should,yes,no,Detect speakers checkbox
 Speech enhancement (noise and echo) on or off,filters,should,yes,no,S09; open model in place of Adobe's
 Speech enhancement strength slider,filters,should,yes,no,premium only in the original

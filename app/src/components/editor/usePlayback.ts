@@ -1,56 +1,59 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import type { EdlPlayer } from "@/lib/audio/player";
+import type { Edl } from "@/lib/edl/edl";
 
 /**
- * Playback clock over the edited timeline. In fake mode there is no audio, only the clock, so the
- * highlighted word moves as if the episode were playing. /replica-backend plugs the Web Audio
- * scheduler into the same interface (isPlaying, currentMs, toggle, seek, skip, restart).
+ * Playback over the edited timeline. With the audio loaded it drives the Web Audio player; without
+ * it (still processing) it runs a silent clock so the word highlight still works.
+ * Any edit while playing restarts playback from the current position with the new edit.
  */
-export function usePlayback(totalMs: number) {
+export function usePlayback(edl: Edl, player: EdlPlayer | null) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentMs, setCurrentMs] = useState(0);
-  // Where the clock (re)starts from; a new object restarts the animation loop.
-  const [anchor, setAnchor] = useState({ ms: 0 });
+  // Changing this object restarts playback from currentRef (after a seek).
+  const [restartToken, setRestartToken] = useState({});
   const currentRef = useRef(0);
+  const totalMs = edl.totalMs;
 
   useEffect(() => {
     if (!isPlaying) return;
     let frame = 0;
+    const from = Math.min(currentRef.current, totalMs);
     const startedAt = performance.now();
+    player?.play(edl, from, () => setIsPlaying(false));
+
     const tick = (now: number) => {
-      const next = anchor.ms + (now - startedAt);
-      if (next >= totalMs) {
+      const position = player ? player.currentMs() : from + (now - startedAt);
+      if (position >= totalMs) {
         currentRef.current = totalMs;
         setCurrentMs(totalMs);
         setIsPlaying(false);
         return;
       }
-      currentRef.current = next;
-      setCurrentMs(next);
+      currentRef.current = position;
+      setCurrentMs(position);
       frame = requestAnimationFrame(tick);
     };
     frame = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(frame);
-  }, [isPlaying, anchor, totalMs]);
+    return () => {
+      cancelAnimationFrame(frame);
+      player?.stop();
+    };
+  }, [isPlaying, restartToken, edl, totalMs, player]);
 
   const seek = (ms: number) => {
     const clamped = Math.min(Math.max(ms, 0), totalMs);
     currentRef.current = clamped;
     setCurrentMs(clamped);
-    setAnchor({ ms: clamped });
+    setRestartToken({});
   };
 
   const toggle = () => {
     if (totalMs <= 0) return;
-    if (isPlaying) {
-      setIsPlaying(false);
-      setAnchor({ ms: currentRef.current });
-      return;
-    }
-    if (currentRef.current >= totalMs) seek(0);
-    else setAnchor({ ms: currentRef.current });
-    setIsPlaying(true);
+    if (!isPlaying && currentRef.current >= totalMs) seek(0);
+    setIsPlaying((playing) => !playing);
   };
 
   return {

@@ -1,0 +1,39 @@
+feature,area,priority,original,clone,notes
+List of projects and create a new project,projects,must,yes,yes,S01; delete with confirmation; in-memory until backend
+Upload an audio file to a project (drag or Add button),media,must,yes,partial,"S02; drag/choose + validation done; file is not stored yet, demo transcript attached"
+Record audio in the browser with record pause stop,recording,must,yes,no,S03; asks for microphone permission
+Automatic transcript with word-level timestamps,transcript,must,yes,partial,uploads need a manual Transcribe click; recordings are automatic; demo transcript with synthetic timings; Whisper comes with backend
+Choose transcript language (EN FR DE IT PT ES),transcript,must,yes,no,S04
+Clicking a word moves the playhead there,editor,must,yes,yes,S05
+Highlight the current word during playback,editor,must,yes,yes,S05; assumed from the playhead link; driven by the playback clock
+Delete text to delete the audio,editor,must,yes,yes,non-destructive; EDL tested
+Cut copy and paste text to move audio,editor,must,yes,yes,keyboard and toolbar
+Undo and redo,editor,must,yes,yes,not documented but expected in a text editor; 200 steps
+Correct a word without changing the audio,editor,must,yes,yes,S06; pencil icon; S06 popover from the toolbar
+Play the edited project with no gaps between cuts,editor,must,yes,partial,"clock only, no audio yet"
+Export the edited audio as MP3 and WAV,export,must,yes,no,S11
+Autosave the project,projects,must,yes,yes,"assumed; not documented; 800 ms debounce, version check; in-memory store"
+Speaker detection with labels,transcript,should,yes,no,Detect speakers checkbox
+Speech enhancement (noise and echo) on or off,filters,should,yes,no,S09; open model in place of Adobe's
+Speech enhancement strength slider,filters,should,yes,no,premium only in the original
+Add music from a library with +,music,should,yes,no,S07; the library must be your own or CC0
+Upload your own music intro or outro,music,should,yes,no,
+Fade in and fade out on music,music,should,yes,no,S08
+Music plays under the next speech (ducking),music,should,yes,no,S08
+Placeholders you can drag and record over,structure,should,yes,partial,"S10; add at the end only; no drag, no record over"
+Export the transcript as TXT PDF DOCX,export,should,yes,partial,TXT only
+Search in the transcript,editor,should,yes,no,the guide suggests a keyword before retakes and searching for it
+Upload multitrack files and keep tracks separate,media,should,yes,no,
+Upload and edit video by text (mp4 mov m4v 3gpp webm),video,could,yes,no,S13; up to 5 GB and 2 hours
+Export the full edited video,video,could,yes,no,
+Export a short clip of a range,export,could,yes,no,
+Audiograms with themes and custom backgrounds,social,could,yes,no,S12
+Captions with themes,social,could,yes,no,
+Download the original recordings split by speaker,export,could,yes,no,
+Real-time upload while recording,recording,could,yes,no,keeps the recording safe if the connection drops
+Enhance Speech as a standalone tool,tools,could,yes,no,out of the chosen slice
+Remote recording with invited guests,recording,could,yes,skip,out of the chosen slice; WebRTC later if needed
+Mic Check with AI feedback,tools,could,yes,skip,out of the chosen slice
+Adobe's own Enhance Speech model,filters,should,yes,skip,proprietary AI; replaced with an open model (row above)
+Adobe's royalty-free music catalogue,music,should,yes,skip,licensed content; use your own or CC0 music
+Adobe account and Firefly Pro plans,account,could,yes,skip,their account system and plans; a personal project needs at most a local login

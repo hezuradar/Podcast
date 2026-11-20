@@ -8,7 +8,8 @@ const START_DELAY_S = 0.05;
  */
 export class EdlPlayer {
   private context: AudioContext | null = null;
-  private buffers = new Map<string, AudioBuffer>();
+  /** assetId → decoded audio plus the version it was loaded at (e.g. enhancement strength). */
+  private buffers = new Map<string, { version: string; buffer: AudioBuffer }>();
   private sources: AudioBufferSourceNode[] = [];
   private startedAt = 0;
   private fromMs = 0;
@@ -18,12 +19,13 @@ export class EdlPlayer {
     return this.context;
   }
 
-  async load(assetId: string, url: string): Promise<void> {
-    if (this.buffers.has(assetId)) return;
-    const response = await fetch(url);
+  /** Loads (or reloads, when `version` changed) the audio of one asset. */
+  async load(assetId: string, url: string, version = ""): Promise<void> {
+    if (this.buffers.get(assetId)?.version === version) return;
+    const response = await fetch(url, { cache: "no-store" });
     if (!response.ok) throw new Error(`No se pudo cargar el audio (${response.status})`);
     const buffer = await this.audio().decodeAudioData(await response.arrayBuffer());
-    this.buffers.set(assetId, buffer);
+    this.buffers.set(assetId, { version, buffer });
   }
 
   /** Starts playing the edit from `fromMs`; `onEnded` fires when the last segment finishes. */
@@ -38,7 +40,7 @@ export class EdlPlayer {
     for (const segment of edl.segments) {
       const length = segment.outMs - segment.inMs;
       const offset = Math.max(0, fromMs - segment.startAtMs);
-      const buffer = this.buffers.get(segment.assetId);
+      const buffer = this.buffers.get(segment.assetId)?.buffer;
       if (offset >= length || !buffer) continue;
       const source = context.createBufferSource();
       source.buffer = buffer;

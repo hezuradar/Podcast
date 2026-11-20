@@ -6,8 +6,8 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Bookmark, FileAudio, Square } from "lucide-react";
 import { Button, RecordButton } from "@/components/ui/Button";
 import { EmptyState, Notice, ProgressBar } from "@/components/ui/feedback";
-import { Slider, Switch } from "@/components/ui/form-controls";
 import { SidePanel, ToolRail, Transport, type ToolId } from "@/components/editor/editor-chrome";
+import { EnhancePanel } from "@/components/editor/EnhancePanel";
 import { ExportDialog } from "@/components/editor/ExportDialog";
 import { JobsPanel } from "@/components/editor/JobsPanel";
 import { TranscriptEditor } from "@/components/editor/TranscriptEditor";
@@ -19,6 +19,7 @@ import { useProjectAudio } from "@/components/editor/useProjectMedia";
 import { useRecorder } from "@/components/editor/useRecorder";
 import { appendPlaceholder } from "@/lib/doc/operations";
 import { buildEdl, keyAtTime, timeOfKey } from "@/lib/edl/edl";
+import { isEnhanceReady } from "@/lib/enhance";
 import { formatDuration } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import type { Language } from "@/lib/media";
@@ -95,7 +96,10 @@ export function Editor({ project }: { project: ProjectDetail }) {
   const { doc } = history;
   const words = useMemo(() => new Map(project.words.map((word) => [word.id, word])), [project.words]);
   const edl = useMemo(() => buildEdl(doc, words), [doc, words]);
-  const audio = useProjectAudio(project.assets);
+  const [isListeningOriginal, setIsListeningOriginal] = useState(false);
+  const enhanceReady = isEnhanceReady(project);
+  const isEnhanced = project.enhance.enabled && enhanceReady && !isListeningOriginal;
+  const audio = useProjectAudio(project.assets, isEnhanced);
   const playback = usePlayback(edl, audio.player);
   const saveStatus = useAutosave(project.id, doc, project.docVersion);
   const [tool, setTool] = useState<ToolId | null>(doc.blocks.length === 0 && project.assets.length === 0 ? "add" : null);
@@ -127,6 +131,11 @@ export function Editor({ project }: { project: ProjectDetail }) {
         <p role="status" className={cn("hidden shrink-0 text-xs sm:block", save.className)}>
           {save.text}
         </p>
+        {isEnhanced && (
+          <span className="hidden shrink-0 rounded-pill bg-accent-soft px-2 py-0.5 text-xs font-semibold text-on-accent-soft md:inline">
+            Voz mejorada
+          </span>
+        )}
         <div className="ml-auto">
           <ExportDialog
             projectId={project.id}
@@ -136,6 +145,14 @@ export function Editor({ project }: { project: ProjectDetail }) {
             words={words}
             speakers={project.speakers}
             isSaved={saveStatus === "saved"}
+            enhanceNote={
+              !project.enhance.enabled
+                ? "Sin mejora de voz: se exporta el audio original."
+                : enhanceReady
+                  ? `Con la voz mejorada (intensidad ${project.enhance.strength} %).`
+                  : "La mejora de voz todavía se está aplicando."
+            }
+            isEnhancePending={project.enhance.enabled && !enhanceReady}
           />
         </div>
       </header>
@@ -153,13 +170,14 @@ export function Editor({ project }: { project: ProjectDetail }) {
               <PlaceholderForm onAdd={(label) => history.apply(appendPlaceholder(doc, crypto.randomUUID(), label))} />
             )}
             {tool === "filters" && (
-              <div className="flex flex-col gap-4">
-                <Switch label="Mejorar la voz" checked={false} onCheckedChange={() => undefined} disabled />
-                <Slider label="Intensidad" value={70} onValueChange={() => undefined} disabled />
-                <p className="text-xs text-text-muted">
-                  La mejora de voz (DeepFilterNet) todavía no está instalada en el worker.
-                </p>
-              </div>
+              <EnhancePanel
+                projectId={project.id}
+                settings={project.enhance}
+                hasAudio={project.assets.some((asset) => asset.hasProxy)}
+                isReady={enhanceReady}
+                isListeningOriginal={isListeningOriginal}
+                onListenOriginalChange={setIsListeningOriginal}
+              />
             )}
             {tool === "music" && (
               <EmptyState

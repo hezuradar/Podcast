@@ -3,8 +3,12 @@ import { mkdirSync, readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
-/** Repo-level data folder (git-ignored): data/app.db and data/media/<project>/... */
-export const DATA_DIR = resolve(process.env.DATA_DIR ?? resolve(process.cwd(), "../data"));
+/**
+ * Repo-level data folder (git-ignored): data/app.db and data/media/<project>/...
+ * It lives outside the app on purpose (runtime data, shared with the worker), so it is excluded
+ * from Next's output file tracing.
+ */
+export const DATA_DIR = resolve(/*turbopackIgnore: true*/ process.env.DATA_DIR ?? resolve(/*turbopackIgnore: true*/ process.cwd(), "../data"));
 export const MEDIA_DIR = resolve(DATA_DIR, "media");
 const MIGRATIONS_DIR = resolve(process.cwd(), "db/migrations");
 

@@ -46,26 +46,45 @@ export function useJobs(projectId: string, initial: Job[]): Job[] {
 
 export type AudioState = "none" | "loading" | "ready" | "error";
 
-/** Loads the playback proxies of every ready asset into one Web Audio player. */
-export function useProjectAudio(assets: Asset[]): { player: EdlPlayer | null; state: AudioState } {
-  // Cheap to create: the AudioContext itself is only made when the first file loads.
-  const [player] = useState(() => new EdlPlayer());
-  const readyIds = useMemo(() => assets.filter((a) => a.hasProxy).map((a) => a.id), [assets]);
-  const idsKey = readyIds.join(",");
+type Variant = "original" | "enhanced";
+
+/**
+ * Loads the playback copies of every processed asset into a Web Audio player: the original ones, or
+ * the voice-enhanced ones when `useEnhanced` (each variant keeps its own player, so switching back
+ * and forth to compare is instant once both are loaded).
+ */
+export function useProjectAudio(assets: Asset[], useEnhanced: boolean): { player: EdlPlayer | null; state: AudioState } {
+  // Cheap to create: each AudioContext is only made when its first file loads.
+  const [players] = useState<Record<Variant, EdlPlayer>>(() => ({ original: new EdlPlayer(), enhanced: new EdlPlayer() }));
+  const variant: Variant = useEnhanced ? "enhanced" : "original";
+  const player = players[variant];
+
+  const sources = useMemo(
+    () =>
+      assets
+        .filter((asset) => (useEnhanced ? asset.enhancedStrength !== null : asset.hasProxy))
+        .map((asset) => {
+          const version = useEnhanced ? String(asset.enhancedStrength) : "original";
+          const url = `/api/assets/${asset.id}/proxy${useEnhanced ? `?enhanced=1&v=${version}` : ""}`;
+          return { id: asset.id, url, version };
+        }),
+    [assets, useEnhanced],
+  );
+  const sourcesKey = `${variant}|${sources.map((s) => `${s.id}@${s.version}`).join(",")}`;
   const [loaded, setLoaded] = useState<{ key: string; state: AudioState }>({ key: "", state: "none" });
 
   useEffect(() => {
-    if (readyIds.length === 0) return;
+    if (sources.length === 0) return;
     let cancelled = false;
-    Promise.all(readyIds.map((id) => player.load(id, `/api/assets/${id}/proxy`)))
-      .then(() => !cancelled && setLoaded({ key: idsKey, state: "ready" }))
-      .catch(() => !cancelled && setLoaded({ key: idsKey, state: "error" }));
+    Promise.all(sources.map((source) => player.load(source.id, source.url, source.version)))
+      .then(() => !cancelled && setLoaded({ key: sourcesKey, state: "ready" }))
+      .catch(() => !cancelled && setLoaded({ key: sourcesKey, state: "error" }));
     return () => {
       cancelled = true;
     };
-  }, [idsKey, readyIds, player]);
+  }, [sourcesKey, sources, player]);
 
-  if (readyIds.length === 0) return { player: null, state: "none" };
-  const state = loaded.key === idsKey ? loaded.state : "loading";
+  if (sources.length === 0) return { player: null, state: "none" };
+  const state = loaded.key === sourcesKey ? loaded.state : "loading";
   return { player: state === "ready" ? player : null, state };
 }

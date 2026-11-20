@@ -4,17 +4,17 @@ Fecha: 2026-11-20. Calculado con `parity.py` sobre `replica/features.csv` (must 
 
 ## Números
 
-- **Funcionalidades: ver la última ejecución abajo.** Imprescindibles: 13 de 14 antes de corregir la grabación (B1); 14 de 14 si la prueba F02 pasa.
+- **Funcionalidades: 66,7 / 100. Imprescindibles: 14 de 14.**
 - **Diseño (comparación de capturas): no medido.** No hay capturas del original: los términos de Adobe no permiten usar la cuenta para recrear el producto, y la pantalla se diseñó desde la documentación pública. `imgdiff.py` no tiene con qué comparar.
 
 ## Por área (de peor a mejor)
 
 | área | puntuación | qué falta |
 | --- | --- | --- |
-| filtros (mejora de voz) | 0 | instalar DeepFilterNet en el worker |
+| filtros (mejora de voz) | 100 | — (hecho con ffmpeg; DeepFilterNet opcional para ruidos no constantes) |
 | música | 0 | biblioteca propia/CC0, fundidos, ducking |
 | vídeo, audiogramas, subtítulos | 0 | fuera de la primera versión |
-| grabación | 37,5 → 75 | subir trozos mientras se graba |
+| grabación | 75 | subir trozos mientras se graba |
 | estructura (marcadores) | 50 | arrastrar y grabar encima |
 | exportar | 57 | PDF/DOCX, recortes, pistas por hablante |
 | audio subido | 60 | multipista |
@@ -33,12 +33,12 @@ Fecha: 2026-11-20. Calculado con `parity.py` sobre `replica/features.csv` (must 
 
 ## Veredicto
 
-**Usable para uso personal** si F02 pasa: todos los imprescindibles hechos, ningún bug S1/S2 abierto. Para «mejor que el original» faltan las mejoras de `fixes.md` que dependen de piezas no construidas (mejora de voz ajustable, carga por trozos).
+**Usable para uso personal**: los 14 imprescindibles hechos (la grabación, F02, probada de punta a punta), mejora de voz medida, ningún bug S1/S2 abierto. Para ser «mejor que el original» en todo faltan dos mejoras de `fixes.md`: subir la grabación por trozos y cargar el audio por trozos en episodios largos.
 
 ## Siguientes cinco
 
 1. Buscar en la transcripción (should, pequeño).
-2. Mejora de voz con DeepFilterNet e intensidad ajustable.
+2. DeepFilterNet como opción para ruidos difíciles (voces de fondo, tráfico).
 3. Separar hablantes con sherpa-onnx.
 4. Subir la grabación por trozos mientras se graba.
 5. Cargar el audio por trozos para episodios de más de una hora.

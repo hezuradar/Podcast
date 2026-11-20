@@ -20,6 +20,10 @@ type ExportDialogProps = {
   speakers: ReadonlyArray<Speaker>;
   /** Audio export renders the saved document, so it waits until the latest edit is saved. */
   isSaved: boolean;
+  /** One line saying whether the export carries the enhanced voice. */
+  enhanceNote: string;
+  /** Enhancement is on but still processing: audio export waits for it. */
+  isEnhancePending: boolean;
 };
 
 type AudioExport = { kind: "audio_mp3" | "audio_wav"; status: "working" | "ready" | "error"; id?: string; error?: string };
@@ -71,7 +75,17 @@ async function waitForExport(id: string): Promise<void> {
   }
 }
 
-export function ExportDialog({ projectId, title, doc, edl, words, speakers, isSaved }: ExportDialogProps) {
+export function ExportDialog({
+  projectId,
+  title,
+  doc,
+  edl,
+  words,
+  speakers,
+  isSaved,
+  enhanceNote,
+  isEnhancePending,
+}: ExportDialogProps) {
   const [audio, setAudio] = useState<AudioExport | null>(null);
   const base = slug(title);
   const cuts = Math.max(edl.segments.length - 1, 0);
@@ -105,7 +119,7 @@ export function ExportDialog({ projectId, title, doc, edl, words, speakers, isSa
     >
       <div className="grid grid-cols-2 gap-2">
         <Button
-          disabled={isEmpty || !isSaved || isWorking}
+          disabled={isEmpty || !isSaved || isWorking || isEnhancePending}
           isLoading={isWorking && audio?.kind === "audio_mp3"}
           leadingIcon={<Download aria-hidden className="size-4" />}
           onClick={() => void exportAudio("audio_mp3")}
@@ -114,7 +128,7 @@ export function ExportDialog({ projectId, title, doc, edl, words, speakers, isSa
         </Button>
         <Button
           variant="secondary"
-          disabled={isEmpty || !isSaved || isWorking}
+          disabled={isEmpty || !isSaved || isWorking || isEnhancePending}
           isLoading={isWorking && audio?.kind === "audio_wav"}
           leadingIcon={<Download aria-hidden className="size-4" />}
           onClick={() => void exportAudio("audio_wav")}
@@ -131,6 +145,7 @@ export function ExportDialog({ projectId, title, doc, edl, words, speakers, isSa
           Transcripción (.txt)
         </Button>
       </div>
+      <p className="text-xs text-text-muted">{enhanceNote}</p>
       {!isSaved && <p className="text-xs text-text-muted">Guardando los últimos cambios…</p>}
       {isWorking && <ProgressBar label="Generando el audio en tu equipo" />}
       {audio?.status === "ready" && audio.id && (

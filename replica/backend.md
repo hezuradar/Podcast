@@ -16,7 +16,7 @@ Fecha: 2026-11-19. Todo en local: no hay cuentas, claves ni servicios externos q
 | Reproducción real con Web Audio | `app/src/lib/audio/player.ts` | hecho |
 | Grabación con el micrófono (MediaRecorder, se sube al parar) | `app/src/components/editor/useRecorder.ts` | hecho |
 | Detección de hablantes (sherpa-onnx) | — | pendiente: todas las palabras van a "Voz 1" |
-| Mejora de voz (DeepFilterNet) | — | pendiente: el binario no está instalado |
+| Mejora de voz: cadena de ffmpeg (ruido, puerta, ecualización, de-esser, compresor, −16 LUFS), intensidad 0–100, A/B con el original | `worker/media.py` (`enhance_chain`), trabajo `enhance`, panel `EnhancePanel` | hecho; medido: SNR 18 → 33,5 dB a 70 |
 | Biblioteca de música, audiogramas, vídeo | — | pendiente |
 
 Cambios respecto a la arquitectura:

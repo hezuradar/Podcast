@@ -7,6 +7,7 @@ import {
   createProject,
   deleteProject,
   saveDocument,
+  setEnhance,
   type SaveResult,
 } from "@/lib/data/projects";
 import type { EditDoc } from "@/lib/doc/types";
@@ -49,4 +50,15 @@ export async function saveDocumentAction(id: string, doc: EditDoc, expectedVersi
     .safeParse({ id, doc, expectedVersion });
   if (!parsed.success) return { ok: false, reason: "not_found" };
   return saveDocument(parsed.data.id, parsed.data.doc, parsed.data.expectedVersion);
+}
+
+const enhanceSchema = z.object({ enabled: z.boolean(), strength: z.number().int().min(0).max(100) });
+
+/** Turns voice enhancement on/off or changes its strength; queues the worker when needed. */
+export async function setEnhanceAction(id: string, settings: { enabled: boolean; strength: number }): Promise<boolean> {
+  const parsed = z.object({ id: idSchema, settings: enhanceSchema }).safeParse({ id, settings });
+  if (!parsed.success) return false;
+  const ok = await setEnhance(parsed.data.id, parsed.data.settings);
+  if (ok) revalidatePath(`/projects/${parsed.data.id}`);
+  return ok;
 }

@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
 
-from media import Segment, asr_words, build_filter
+from media import Segment, asr_words, build_filter, enhance_chain
 
 PROXY_SAMPLE_RATE = 24_000
 MASTER_SAMPLE_RATE = 48_000
@@ -105,6 +105,38 @@ def transcode(ctx: Context, job: sqlite3.Row, payload: dict) -> None:
         (ctx.relative(master), ctx.relative(proxy), duration_ms, sample_rate, channels, ctx.now(), asset["id"]),
     )
     queue_job(ctx, asset["project_id"], asset["id"], "transcribe", {"language": payload.get("language", "es")})
+    enabled, _strength = project_enhance(ctx, asset["project_id"])
+    if enabled:
+        queue_job(ctx, asset["project_id"], asset["id"], "enhance", {})
+
+
+def project_enhance(ctx: Context, project_id: str) -> tuple[bool, int]:
+    row = ctx.conn.execute("SELECT enhance_enabled, enhance_strength FROM projects WHERE id = ?", (project_id,)).fetchone()
+    return (bool(row["enhance_enabled"]), int(row["enhance_strength"])) if row else (False, 70)
+
+
+def enhance(ctx: Context, job: sqlite3.Row, payload: dict) -> None:
+    """Cleans and levels one asset (see media.enhance_chain) and makes its light playback copy.
+    Uses the project's *current* strength, and re-queues itself if the user moved the slider meanwhile."""
+    asset = ctx.conn.execute("SELECT * FROM media_assets WHERE id = ?", (job["asset_id"],)).fetchone()
+    if asset is None or not asset["master_path"]:
+        raise JobError("El audio no está preparado")
+    _enabled, strength = project_enhance(ctx, asset["project_id"])
+    master = ctx.path(asset["master_path"])
+    enhanced = master.with_name("enhanced.wav")
+    encode(master, enhanced, ["-af", enhance_chain(strength), "-ar", str(MASTER_SAMPLE_RATE), "-c:a", "pcm_s16le"])
+    ctx.progress(job["id"], 0.7)
+    encode(enhanced, enhanced.with_name("proxy-enhanced.wav"), ["-ac", "1", "-ar", str(PROXY_SAMPLE_RATE), "-c:a", "pcm_s16le"])
+    ctx.conn.execute(
+        "UPDATE media_assets SET enhanced_path = ?, enhanced_strength = ?, updated_at = ? WHERE id = ?",
+        (ctx.relative(enhanced), strength, ctx.now(), asset["id"]),
+    )
+    enabled_now, strength_now = project_enhance(ctx, asset["project_id"])
+    if enabled_now and strength_now != strength:
+        ctx.conn.execute(  # this job still counts as running: free the slot before queuing the next one
+            "UPDATE jobs SET status = 'done', progress = 1, updated_at = ? WHERE id = ?", (ctx.now(), job["id"])
+        )
+        queue_job(ctx, asset["project_id"], asset["id"], "enhance", {})
 
 
 _model = None
@@ -214,13 +246,20 @@ def render(ctx: Context, job: sqlite3.Row, payload: dict) -> None:
     rows = {
         r["id"]: r
         for r in ctx.conn.execute(
-            f"SELECT id, master_path, duration_ms FROM media_assets WHERE id IN ({','.join('?' * len(asset_ids))})",
+            "SELECT id, master_path, enhanced_path, enhanced_strength, duration_ms FROM media_assets "
+            f"WHERE id IN ({','.join('?' * len(asset_ids))})",
             asset_ids,
         )
     }
     missing = [a for a in asset_ids if a not in rows or not rows[a]["master_path"]]
     if missing:
         raise JobError("Falta el audio original de algún fragmento")
+    source_column = "master_path"
+    if payload.get("enhance"):
+        strength = int(payload.get("strength", 70))
+        if any(rows[a]["enhanced_path"] is None or rows[a]["enhanced_strength"] != strength for a in asset_ids):
+            raise JobError("La mejora de voz todavía se está aplicando. Espera a que termine y vuelve a exportar.")
+        source_column = "enhanced_path"
 
     graph = build_filter(segments, {a: i for i, a in enumerate(asset_ids)}, {a: rows[a]["duration_ms"] for a in asset_ids})
     out_dir = ctx.media_dir / job["project_id"] / "exports"
@@ -232,7 +271,7 @@ def render(ctx: Context, job: sqlite3.Row, payload: dict) -> None:
     with tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False, encoding="utf-8") as script:
         script.write(graph)
     try:
-        inputs = [arg for a in asset_ids for arg in ("-i", str(ctx.path(rows[a]["master_path"])))]
+        inputs = [arg for a in asset_ids for arg in ("-i", str(ctx.path(rows[a][source_column])))]
         run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", *inputs, "-/filter_complex", script.name,
              "-map", "[out]", *codec, str(tmp)])
         os.replace(tmp, target)
@@ -251,4 +290,4 @@ def fail_export(ctx: Context, payload: dict, message: str) -> None:
         )
 
 
-HANDLERS = {"transcode": transcode, "transcribe": transcribe, "render": render}
+HANDLERS = {"transcode": transcode, "transcribe": transcribe, "enhance": enhance, "render": render}

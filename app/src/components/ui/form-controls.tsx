@@ -44,10 +44,12 @@ type SliderProps = {
   label: string;
   value: number;
   onValueChange: (value: number) => void;
+  /** Fires once when the user releases the thumb (or finishes with the keyboard). */
+  onValueCommit?: (value: number) => void;
   disabled?: boolean;
 };
 
-export function Slider({ label, value, onValueChange, disabled }: SliderProps) {
+export function Slider({ label, value, onValueChange, onValueCommit, disabled }: SliderProps) {
   const id = useId();
   return (
     <div className="flex flex-col gap-2">
@@ -61,6 +63,7 @@ export function Slider({ label, value, onValueChange, disabled }: SliderProps) {
         aria-labelledby={id}
         value={[value]}
         onValueChange={([next]) => onValueChange(next)}
+        onValueCommit={([next]) => onValueCommit?.(next)}
         min={0}
         max={100}
         step={1}

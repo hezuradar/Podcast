@@ -5,7 +5,32 @@ from types import SimpleNamespace
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from media import AsrWord, Segment, asr_words, build_filter, padded  # noqa: E402
+from media import AsrWord, Segment, asr_words, build_filter, enhance_chain, padded  # noqa: E402
+
+
+class EnhanceChainTest(unittest.TestCase):
+    def test_full_strength_denoises_gates_and_normalises_to_podcast_loudness(self):
+        chain = enhance_chain(100)
+        self.assertTrue(chain.startswith("highpass=f=80"))
+        self.assertIn("afftdn=nr=40", chain)
+        self.assertIn("agate=", chain)
+        self.assertIn("range=0.100", chain)
+        self.assertTrue(chain.endswith("loudnorm=I=-16:TP=-1.5:LRA=11"))
+
+    def test_zero_strength_only_levels_the_voice(self):
+        chain = enhance_chain(0)
+        self.assertNotIn("afftdn", chain)
+        self.assertNotIn("agate", chain)
+        self.assertNotIn("deesser", chain)
+        self.assertIn("acompressor", chain)
+        self.assertIn("loudnorm", chain)
+
+    def test_strength_is_clamped(self):
+        self.assertEqual(enhance_chain(250), enhance_chain(100))
+        self.assertEqual(enhance_chain(-5), enhance_chain(0))
+
+    def test_more_strength_means_more_noise_reduction(self):
+        self.assertIn("afftdn=nr=25", enhance_chain(50))
 
 
 class PaddedTest(unittest.TestCase):

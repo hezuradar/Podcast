@@ -69,6 +69,29 @@ test("F02: record with the microphone, stop and get a transcript", async ({ page
   await expect(transcript(page)).toContainText(/\w+/, { timeout: TRANSCRIBE_TIMEOUT });
 });
 
+test("S09: enhance a noisy voice, compare with the original and export the enhanced audio", async ({ page }) => {
+  await createProject(page, "E2E voz ruidosa");
+  await page.locator('input[type="file"]').setInputFiles(resolve(__dirname, "fixtures/voz-ruidosa.wav"));
+  await expect(transcript(page)).toContainText("almacenes", { timeout: TRANSCRIBE_TIMEOUT });
+
+  await page.getByRole("button", { name: "Filtros" }).click();
+  await page.getByRole("switch", { name: "Mejorar la voz" }).click();
+  await expect(page.getByText("Lista: escuchas y exportas la voz mejorada.")).toBeVisible({ timeout: 120_000 });
+  await expect(page.getByText("Voz mejorada", { exact: true })).toBeVisible();
+
+  // Compare: listening to the original removes the badge; switching back restores it.
+  await page.getByRole("switch", { name: "Escuchar el original" }).click();
+  await expect(page.getByText("Voz mejorada", { exact: true })).toBeHidden();
+  await page.getByRole("switch", { name: "Escuchar el original" }).click();
+  await expect(page.getByText("Voz mejorada", { exact: true })).toBeVisible();
+
+  await page.getByRole("button", { name: "Exportar" }).click();
+  await expect(page.getByText(/Con la voz mejorada \(intensidad 70 %\)/)).toBeVisible();
+  const downloadPromise = page.waitForEvent("download", { timeout: 60_000 });
+  await page.getByRole("button", { name: "Audio WAV" }).click();
+  expect((await downloadPromise).suggestedFilename()).toBe("E2E voz ruidosa.wav");
+});
+
 test("recorded WebM/Opus uploads are processed like any upload", async ({ page, request }) => {
   const id = await createProject(page, "E2E webm");
   const response = await request.post(`/api/projects/${id}/assets`, {

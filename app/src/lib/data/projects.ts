@@ -20,9 +20,12 @@ export type Asset = {
   originalName: string | null;
   status: "uploading" | "recording" | "processing" | "ready" | "error";
   hasProxy: boolean;
+  /** Strength the enhanced copy was made with, or null if there is none yet. */
+  enhancedStrength: number | null;
   durationMs: number | null;
   error: string | null;
 };
+export type EnhanceSettings = { enabled: boolean; strength: number };
 export type ProjectDetail = ProjectSummary & {
   doc: EditDoc;
   docVersion: number;
@@ -30,6 +33,7 @@ export type ProjectDetail = ProjectSummary & {
   speakers: Speaker[];
   assets: Asset[];
   jobs: Job[];
+  enhance: EnhanceSettings;
 };
 export type SaveResult = { ok: true; docVersion: number } | { ok: false; reason: "not_found" | "conflict" };
 export type ExportKind = "audio_mp3" | "audio_wav";
@@ -112,6 +116,7 @@ export async function getProject(id: string): Promise<ProjectDetail | null> {
       originalName: strOrNull(a.original_name),
       status: str(a.status) as Asset["status"],
       hasProxy: a.proxy_dir !== null,
+      enhancedStrength: a.enhanced_path === null || a.enhanced_strength === null ? null : num(a.enhanced_strength),
       durationMs: a.duration_ms === null ? null : num(a.duration_ms),
       error: strOrNull(a.error),
     }),
@@ -125,7 +130,40 @@ export async function getProject(id: string): Promise<ProjectDetail | null> {
     speakers,
     assets,
     jobs: await listActiveJobs(id),
+    enhance: { enabled: num(row.enhance_enabled) === 1, strength: num(row.enhance_strength) },
   };
+}
+
+/**
+ * Saves the voice-enhancement settings. When enabled, queues an `enhance` job for every processed
+ * asset not yet enhanced at this strength (the worker always uses the project's latest strength).
+ */
+export async function setEnhance(projectId: string, settings: EnhanceSettings): Promise<boolean> {
+  const now = nowIso();
+  return transaction((db) => {
+    const updated = db
+      .prepare("UPDATE projects SET enhance_enabled = ?, enhance_strength = ?, updated_at = ? WHERE id = ?")
+      .run(settings.enabled ? 1 : 0, settings.strength, now, projectId);
+    if (Number(updated.changes) === 0) return false;
+    if (!settings.enabled) return true;
+    const pending = db
+      .prepare(
+        `SELECT id FROM media_assets WHERE project_id = ? AND master_path IS NOT NULL
+         AND (enhanced_path IS NULL OR enhanced_strength IS NULL OR enhanced_strength != ?)`,
+      )
+      .all(projectId, settings.strength) as Row[];
+    const insert = db.prepare(
+      "INSERT INTO jobs (id, project_id, asset_id, type, payload, created_at, updated_at) VALUES (?, ?, ?, 'enhance', '{}', ?, ?)",
+    );
+    for (const asset of pending) {
+      try {
+        insert.run(randomUUID(), projectId, str(asset.id), now, now);
+      } catch {
+        // an enhance job is already queued or running for this asset; it will pick up the new strength
+      }
+    }
+    return true;
+  });
 }
 
 export async function createProject(title: string): Promise<ProjectSummary> {
@@ -190,23 +228,40 @@ export async function createAssetWithJobs(input: NewAsset): Promise<string> {
   return assetId;
 }
 
-export async function getAssetFile(assetId: string): Promise<{ projectId: string; proxyPath: string | null } | null> {
-  const row = getDb().prepare("SELECT project_id, proxy_dir FROM media_assets WHERE id = ?").get(assetId) as Row | undefined;
+export async function getAssetFile(
+  assetId: string,
+): Promise<{ projectId: string; proxyPath: string | null; enhancedProxyPath: string | null } | null> {
+  const row = getDb().prepare("SELECT project_id, proxy_dir, enhanced_path FROM media_assets WHERE id = ?").get(assetId) as
+    | Row
+    | undefined;
   if (!row) return null;
-  return { projectId: str(row.project_id), proxyPath: strOrNull(row.proxy_dir) };
+  const enhanced = strOrNull(row.enhanced_path);
+  return {
+    projectId: str(row.project_id),
+    proxyPath: strOrNull(row.proxy_dir),
+    // The worker writes the enhanced playback copy next to the enhanced master.
+    enhancedProxyPath: enhanced ? enhanced.replace(/enhanced\.wav$/, "proxy-enhanced.wav") : null,
+  };
 }
 
 type Segment = { assetId: string; inMs: number; outMs: number };
 
 /** Creates an export of the given edit and queues the render job for the worker. */
-export async function createExport(projectId: string, kind: ExportKind, docVersion: number, segments: Segment[]): Promise<string> {
+export async function createExport(
+  projectId: string,
+  kind: ExportKind,
+  docVersion: number,
+  segments: Segment[],
+  enhance: EnhanceSettings,
+): Promise<string> {
   const exportId = randomUUID();
   const jobId = randomUUID();
   const now = nowIso();
+  const payload = { exportId, kind, segments, enhance: enhance.enabled, strength: enhance.strength };
   transaction((db) => {
     db.prepare(
       "INSERT INTO jobs (id, project_id, type, payload, created_at, updated_at) VALUES (?, ?, 'render', ?, ?, ?)",
-    ).run(jobId, projectId, JSON.stringify({ exportId, kind, segments }), now, now);
+    ).run(jobId, projectId, JSON.stringify(payload), now, now);
     db.prepare(
       `INSERT INTO exports (id, project_id, job_id, kind, doc_version, status, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, 'queued', ?, ?)`,

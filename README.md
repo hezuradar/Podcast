@@ -1,13 +1,19 @@
 # Hitzez
 
-**Edita el audio de tus podcasts editando el texto.** Sube o graba una conversación, Hitzez la transcribe en tu propio ordenador y, cuando borras una frase del texto, desaparece del audio. Luego exportas el episodio limpio en MP3 o WAV.
+**Mejora la voz y edita el audio de tus podcasts editando el texto.** Sube o graba una conversación: Hitzez quita el ruido de fondo, limpia la voz y la deja al volumen estándar de los podcasts; la transcribe en tu propio ordenador y, cuando borras una frase del texto, desaparece del audio. Luego exportas el episodio limpio en MP3 o WAV.
 
 Todo funciona en local: el audio no sale de tu equipo, no hay cuentas ni límites de uso.
 
-![Editor de Hitzez](replica/clone-screens/S05.jpg)
+![Hitzez: mejora de voz y editor por texto](replica/clone-screens/S09.jpg)
 
 ## Qué hace
 
+- **Mejorar la voz** (panel Filtros), con intensidad ajustable de 0 a 100 y un interruptor para comparar con el original:
+  - quita el ruido de fondo constante (ventilador, zumbido, ambiente) y lo baja aún más en las pausas;
+  - quita retumbes graves, limpia el «barro» de la voz, le da presencia y suaviza las eses;
+  - comprime y deja el volumen en **−16 LUFS** con picos por debajo de −1,5 dB, el nivel habitual de las plataformas de podcast.
+
+  Medido con un audio de prueba con ruido y zumbido, a la intensidad por defecto (70): el ruido en las pausas baja de −39 a −50 dB, la relación voz/ruido pasa de 18 a 33,5 dB y el volumen de −20 a −16 LUFS; la transcripción del audio mejorado sale idéntica (la voz no se deforma). La exportación usa el audio mejorado.
 - **Proyectos**: lista de episodios, crear y borrar.
 - **Subir o grabar**: arrastra un audio o vídeo (MP3, WAV, M4A, FLAC, OGG, WebM, MP4, MOV… hasta 5 GB) o graba con el micrófono.
 - **Transcripción automática** con tiempos por palabra (faster-whisper, en CPU), en español, inglés, francés, alemán, italiano o portugués.
@@ -18,7 +24,7 @@ Todo funciona en local: el audio no sale de tu equipo, no hay cuentas ni límite
 - **Guardado automático.**
 - **Exportar** audio MP3 o WAV (con márgenes y fundidos cortos en cada corte para que no se oigan chasquidos) y la transcripción en TXT.
 
-Pendiente: separar hablantes, mejora de voz, biblioteca de música, vídeo. El detalle está en [`replica/features.csv`](replica/features.csv) y [`replica/build-log.md`](replica/build-log.md).
+Pendiente: separar hablantes, biblioteca de música, vídeo; opcionalmente, un modelo de IA (DeepFilterNet) para ruidos difíciles no constantes (voces de fondo, tráfico), que los filtros actuales no quitan bien. El detalle está en [`replica/features.csv`](replica/features.csv) y [`replica/build-log.md`](replica/build-log.md).
 
 ## Requisitos
 
@@ -63,10 +69,10 @@ navegador ──> Next.js 16 (interfaz + API) ──> SQLite (data/app.db) <─�
 
 ```bash
 cd app
-npm test                    # 27 tests unitarios (Vitest)
-npx playwright test         # 10 pruebas de punta a punta (incluye transcripción real y grabación con micrófono simulado)
+npm test                    # 30 tests unitarios (Vitest)
+npx playwright test         # 11 pruebas de punta a punta (transcripción real, mejora de voz, grabación con micrófono simulado)
 cd ..
-worker/.venv/Scripts/python -m unittest discover -s worker/tests   # 9 tests del worker
+worker/.venv/Scripts/python -m unittest discover -s worker/tests   # 13 tests del worker
 ```
 
 ## Origen

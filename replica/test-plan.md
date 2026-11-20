@@ -1,6 +1,6 @@
 # Plan de pruebas
 
-Fecha: 2026-11-19. Automatizado con Playwright (`app/e2e/`, `npx playwright test`) contra el servidor local con el worker real. Unitarios: Vitest (`npm test`, 27 tests) y unittest del worker (`worker/.venv/Scripts/python -m unittest discover -s worker/tests`, 9 tests).
+Fecha: 2026-11-19. Automatizado con Playwright (`app/e2e/`, `npx playwright test`) contra el servidor local con el worker real. Unitarios: Vitest (`npm test`, 30 tests) y unittest del worker (`worker/.venv/Scripts/python -m unittest discover -s worker/tests`, 13 tests).
 
 Todas las pruebas E2E fallan si hay errores en la consola o respuestas 5xx (`e2e/helpers.ts`).
 
@@ -18,8 +18,9 @@ Todas las pruebas E2E fallan si hay errores en la consola o respuestas 5xx (`e2e
 | F04 | corregir una palabra y deshacer | E2E |
 | F02 | grabar con micrófono (falso, de archivo), parar, transcripción | E2E con `--use-file-for-fake-audio-capture` |
 | F02 | WebM/Opus subido como grabación se procesa | E2E por API |
+| S09 | mejora de voz: activar, esperar, comparar con el original, exportar WAV mejorado | E2E; medido aparte: SNR 18 → 33,5 dB, −16,1 LUFS, picos −1,5 dB, transcripción idéntica |
 | reproducción | Web Audio reproduce la lista de cortes y resalta la palabra | manual en el navegador integrado (a 2 s: palabra «prueba.») |
 | teclado | flechas, Mayús, Supr, Ctrl+X/C/V/Z/Y, espacio, Intro | E2E (parte) + manual |
 | unitarios | operaciones del documento, lista de cortes, formato, filtro de ffmpeg, palabras de Whisper | Vitest + unittest |
 
-Fuera de esta ronda: mejora de voz, hablantes, música, vídeo (no construidos); Firefox/Safari (solo Chromium).
+Fuera de esta ronda: hablantes, música, vídeo (no construidos); Firefox/Safari (solo Chromium).

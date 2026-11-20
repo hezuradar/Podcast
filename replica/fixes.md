@@ -29,7 +29,7 @@ Fecha: 2026-11-19. **Muestra pequeña y de segunda mano:** no se ha montado un `
 | El audio nunca sale de tu equipo | S | ya hecho | hecho |
 | No perder nunca una grabación: subir trozos mientras se graba (no solo al parar) | M | /replica-build | pendiente (la grabación se guarda al parar) |
 | Exportación fiable y comprobable: el render usa la misma lista de cortes que el reproductor, con márgenes y fundidos | S | ya hecho | hecho; verificado transcribiendo el MP3 |
-| Intensidad de mejora de voz ajustable para todos, con 70 % por defecto (no 90 %) | M | /replica-backend | pendiente (falta instalar DeepFilterNet) |
+| Intensidad de mejora de voz ajustable para todos, con 70 % por defecto (no 90 %) | M | /replica-backend | hecho (cadena de ffmpeg; DeepFilterNet queda como mejora futura) |
 | Archivos largos sin atascos: cargar el audio por trozos en el navegador | M | /replica-build | pendiente (ahora se decodifica entero) |
 
 Añadidas a `features.csv` como filas con `original = no`.

@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import type { Metadata } from "next";
 import { DesignPlayground } from "./DesignPlayground";
 
-export const metadata: Metadata = { title: "Sistema de diseño · Podcast editor" };
+export const metadata: Metadata = { title: "Sistema de diseño · Hitzez" };
 
 type TokenFile = { color: Record<string, string>; type: Record<string, { size: number; line: number; weight: number }> };
 

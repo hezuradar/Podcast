@@ -53,7 +53,7 @@ export default function Home() {
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-10 px-4 py-10 sm:px-6">
       <header className="flex flex-col gap-6 border-b border-border pb-8 md:flex-row md:items-end md:justify-between">
         <div className="flex flex-col gap-2">
-          <p className="text-xs font-semibold tracking-wide text-accent uppercase">Editor de podcasts</p>
+          <p className="text-xs font-semibold tracking-wide text-accent uppercase">Hitzez · editor de podcasts</p>
           <h1 className="text-xl">Tus episodios</h1>
           <p className="max-w-md text-sm text-text-muted">Edita el audio como si fuera un documento: borra una frase y desaparece del episodio.</p>
         </div>

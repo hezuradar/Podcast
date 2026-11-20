@@ -1,0 +1,6 @@
+{
+  "name": "Hitzez",
+  "avoid": ["Adobe", "Adobe Podcast", "Enhance Speech", "Mic Check", "Firefly"],
+  "domains": ["podcast.adobe.com", "adobe.com"],
+  "colors": ["#FA0F00"]
+}

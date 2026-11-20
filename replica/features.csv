@@ -1,7 +1,7 @@
 feature,area,priority,original,clone,notes
 List of projects and create a new project,projects,must,yes,yes,S01; delete with confirmation; in-memory until backend
 Upload an audio file to a project (drag or Add button),media,must,yes,yes,"streamed to disk, 5 GB limit, tested with curl and in the editor"
-Record audio in the browser with record pause stop,recording,must,yes,partial,MediaRecorder record/pause/stop + upload built; not tested with a real microphone in the automated run
+Record audio in the browser with record pause stop,recording,must,yes,yes,"MediaRecorder record/pause/stop; tested E2E with a fake microphone; uploaded when stopped"
 Automatic transcript with word-level timestamps,transcript,must,yes,yes,faster-whisper small on CPU; tested end to end
 Choose transcript language (EN FR DE IT PT ES),transcript,must,yes,yes,selector in the Add panel
 Clicking a word moves the playhead there,editor,must,yes,yes,S05
@@ -37,3 +37,8 @@ Mic Check with AI feedback,tools,could,yes,skip,out of the chosen slice
 Adobe's own Enhance Speech model,filters,should,yes,skip,proprietary AI; replaced with an open model (row above)
 Adobe's royalty-free music catalogue,music,should,yes,skip,licensed content; use your own or CC0 music
 Adobe account and Firefly Pro plans,account,could,yes,skip,their account system and plans; a personal project needs at most a local login
+No daily or duration limits (runs locally),fixes,should,no,yes,from replica/fixes.md
+Audio never leaves your computer,fixes,should,no,yes,from replica/fixes.md
+Upload recording chunks while recording,fixes,should,no,no,from replica/fixes.md
+Adjustable enhancement strength for everyone (default 70%),fixes,could,no,no,from replica/fixes.md; needs DeepFilterNet
+Chunked audio loading for long files,fixes,could,no,no,from replica/fixes.md

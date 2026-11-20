@@ -127,7 +127,8 @@ export function Transport({
       <Button variant="ghost" iconLabel="Ir al inicio" disabled={isDisabled} onClick={onRestart}>
         <SkipBack aria-hidden className="size-4" />
       </Button>
-      <Button variant="ghost" iconLabel="Retroceder 5 segundos" disabled={isDisabled} onClick={() => onSkip?.(-SKIP_MS)}>
+      {/* ±5 s buttons hide on phones so the bar fits next to the tool rail; play/restart stay. */}
+      <Button variant="ghost" iconLabel="Retroceder 5 segundos" disabled={isDisabled} onClick={() => onSkip?.(-SKIP_MS)} className="max-sm:hidden">
         <RotateCcw aria-hidden className="size-4" />
       </Button>
       <Button
@@ -139,10 +140,10 @@ export function Transport({
       >
         {isPlaying ? <Pause aria-hidden className="size-5" /> : <Play aria-hidden className="size-5 translate-x-px" />}
       </Button>
-      <Button variant="ghost" iconLabel="Avanzar 5 segundos" disabled={isDisabled} onClick={() => onSkip?.(SKIP_MS)}>
+      <Button variant="ghost" iconLabel="Avanzar 5 segundos" disabled={isDisabled} onClick={() => onSkip?.(SKIP_MS)} className="max-sm:hidden">
         <RotateCw aria-hidden className="size-4" />
       </Button>
-      <p className="ml-2 font-mono text-sm tabular-nums">
+      <p className="ml-1 font-mono text-xs whitespace-nowrap tabular-nums sm:ml-2 sm:text-sm">
         {current} <span className="text-text-muted">/ {total}</span>
       </p>
     </div>

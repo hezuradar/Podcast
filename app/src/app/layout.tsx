@@ -13,8 +13,8 @@ const sourceSerif = Source_Serif_4({
 });
 
 export const metadata: Metadata = {
-  title: "Podcast editor",
-  description: "Edit podcast audio by editing its transcript. Runs locally.",
+  title: "Hitzez",
+  description: "Edita el audio de tus podcasts editando el texto. Funciona en tu equipo.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

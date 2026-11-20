@@ -4,3 +4,8 @@ node_modules/
 *.log
 .env*
 !.env.example
+__pycache__/
+*.pyc
+.venv/
+app/test-results/
+app/playwright-report/

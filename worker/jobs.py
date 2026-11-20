@@ -54,14 +54,16 @@ def run(args: list[str]) -> str:
 
 
 def probe(path: Path) -> tuple[int, int, int]:
-    """(duration_ms, sample_rate, channels) of the first audio stream; JobError if there is none."""
+    """(duration_ms, sample_rate, channels) of the first audio stream; JobError if there is none.
+    duration_ms is 0 when the container does not store it (browser MediaRecorder WebM files)."""
     info = json.loads(run(["ffprobe", "-v", "error", "-print_format", "json", "-show_streams", "-show_format", str(path)]))
     audio = next((s for s in info.get("streams", []) if s.get("codec_type") == "audio"), None)
     if audio is None:
         raise JobError("El archivo no tiene pista de audio")
-    duration = float(info.get("format", {}).get("duration") or audio.get("duration") or 0)
-    if duration <= 0:
-        raise JobError("No se pudo leer la duración del audio")
+    try:
+        duration = float(info.get("format", {}).get("duration") or audio.get("duration") or 0)
+    except ValueError:
+        duration = 0.0
     return int(duration * 1000), int(audio.get("sample_rate") or 0), int(audio.get("channels") or 0)
 
 
@@ -91,6 +93,10 @@ def transcode(ctx: Context, job: sqlite3.Row, payload: dict) -> None:
     master = original.with_name("master.wav")
     proxy = original.with_name("proxy.wav")
     encode(original, master, ["-ac", str(min(max(channels, 1), 2)), "-ar", str(MASTER_SAMPLE_RATE), "-c:a", "pcm_s16le"])
+    if duration_ms <= 0:  # the WAV we just wrote always knows its length
+        duration_ms = probe(master)[0]
+    if duration_ms <= 0:
+        raise JobError("El audio está vacío")
     ctx.progress(job["id"], 0.6)
     encode(original, proxy, ["-ac", "1", "-ar", str(PROXY_SAMPLE_RATE), "-c:a", "pcm_s16le"])
     ctx.conn.execute(

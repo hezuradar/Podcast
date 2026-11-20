@@ -102,7 +102,8 @@ export function RecordButton({ state, elapsed, disabledReason, onClick }: Record
         )}
         {state === "recording" ? <Pause aria-hidden className="size-6" /> : <Mic aria-hidden className="size-6" />}
       </button>
-      <div className="flex flex-col">
+      {/* On phones the counter and reason are kept for screen readers only (the button keeps its title). */}
+      <div className="flex flex-col max-sm:sr-only">
         <span className="font-mono text-sm tabular-nums">{elapsed}</span>
         {disabledReason && <span className="text-xs text-text-muted">{disabledReason}</span>}
       </div>

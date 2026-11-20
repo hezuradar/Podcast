@@ -1,0 +1,12 @@
+Hitzez incluye estos componentes de terceros:
+
+- Node.js (licencia MIT y otras de sus dependencias) - https://nodejs.org
+- Next.js, React (MIT), Radix UI (MIT), Lucide (ISC), Tailwind CSS (MIT)
+- Fuentes Inter y Source Serif 4 (SIL Open Font License)
+- Python y su biblioteca estándar (PSF License) - https://www.python.org
+- faster-whisper (MIT), CTranslate2 (MIT), ONNX Runtime (MIT), tokenizers (Apache 2.0), NumPy (BSD)
+- Modelo Whisper "small" convertido por Systran (MIT, modelo original de OpenAI) - https://huggingface.co/Systran/faster-whisper-small
+- FFmpeg y FFprobe, compilación "full" de gyan.dev (GPL v3) - https://ffmpeg.org, https://www.gyan.dev/ffmpeg/builds/
+  El código fuente de FFmpeg está disponible en https://ffmpeg.org/download.html
+
+El código de Hitzez está en https://github.com/hezuradar/Podcast

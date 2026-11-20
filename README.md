@@ -26,7 +26,26 @@ Todo funciona en local: el audio no sale de tu equipo, no hay cuentas ni límite
 
 Pendiente: separar hablantes, biblioteca de música, vídeo; opcionalmente, un modelo de IA (DeepFilterNet) para ruidos difíciles no constantes (voces de fondo, tráfico), que los filtros actuales no quitan bien. El detalle está en [`replica/features.csv`](replica/features.csv) y [`replica/build-log.md`](replica/build-log.md).
 
-## Requisitos
+## Versión para Windows (instalador)
+
+`Hitzez-Setup-1.0.0.exe` (~650 MB) lo instala todo, sin necesitar Node, Python ni ffmpeg en el PC: se descarga desde la sección **Releases** de este repositorio.
+
+- Se instala para tu usuario, sin permisos de administrador, en `%LOCALAPPDATA%\Programs\Hitzez`, con acceso en el menú Inicio (y en el escritorio si lo marcas).
+- Al abrir **Hitzez**, se abre en el navegador en `http://127.0.0.1:3210` y queda un icono junto al reloj: **Abrir Hitzez**, **Abrir carpeta de datos**, **Ver registros** y **Salir**.
+- Tus proyectos y audios se guardan en `%LOCALAPPDATA%\Hitzez`; desinstalar no los borra.
+- Incluye el modelo de transcripción: funciona sin conexión a internet.
+- Windows SmartScreen puede avisar de que el instalador no está firmado: «Más información» → «Ejecutar de todas formas».
+
+Para generarlo tú (necesita Node, el entorno del worker con PyInstaller, ffmpeg, el modelo descargado e [Inno Setup 6](https://jrsoftware.org/isinfo.php)):
+
+```powershell
+worker\.venv\Scripts\python -m pip install pyinstaller
+powershell -ExecutionPolicy Bypass -File packaging\build.ps1
+```
+
+Sale en `packaging\dist\Hitzez\` (carpeta portable) y `packaging\dist\setup\Hitzez-Setup-1.0.0.exe`.
+
+## Requisitos (para desarrollar)
 
 - Windows, macOS o Linux con **Node.js 24** y **Python 3.12 o superior**.
 - **ffmpeg** y **ffprobe** en el PATH.

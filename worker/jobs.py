@@ -208,7 +208,7 @@ def save_transcript(ctx: Context, asset: sqlite3.Row, language: str, words: list
         ctx.conn.execute(
             """INSERT INTO transcripts (id, asset_id, language, model, status, created_at, updated_at)
                VALUES (?, ?, ?, ?, 'done', ?, ?)""",
-            (transcript_id, asset["id"], language, f"faster-whisper {WHISPER_MODEL}", now, now),
+            (transcript_id, asset["id"], language, f"faster-whisper {Path(WHISPER_MODEL).name}", now, now),
         )
         refs = []
         for idx, word in enumerate(words):

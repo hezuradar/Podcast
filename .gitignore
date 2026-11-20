@@ -9,3 +9,5 @@ __pycache__/
 .venv/
 app/test-results/
 app/playwright-report/
+packaging/build/
+packaging/dist/

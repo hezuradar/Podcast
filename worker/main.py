@@ -17,7 +17,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from jobs import HANDLERS, Context, JobError, fail_export  # noqa: E402
+from jobs import HANDLERS, Context, JobCancelled, JobError, fail_export  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = Path(os.environ.get("DATA_DIR", ROOT / "data")).resolve()
@@ -76,7 +76,7 @@ def claim(conn: sqlite3.Connection) -> sqlite3.Row | None:
 def finish(conn: sqlite3.Connection, job_id: str, status: str, error: str | None = None) -> None:
     conn.execute(
         "UPDATE jobs SET status = ?, error = ?, progress = CASE WHEN ? = 'done' THEN 1 ELSE progress END, "
-        "locked_at = NULL, updated_at = ? WHERE id = ?",
+        "locked_at = NULL, updated_at = ? WHERE id = ? AND status != 'cancelled'",  # a cancel always wins
         (status, error, status, now_iso(), job_id),
     )
 
@@ -99,6 +99,8 @@ def run_job(ctx: Context, job: sqlite3.Row) -> None:
         handler(ctx, job, payload)
         finish(ctx.conn, job["id"], "done")
         log.info("Hecho %s %s", job["type"], job["id"])
+    except JobCancelled:
+        log.info("Cancelado por el usuario: %s %s", job["type"], job["id"])
     except JobError as error:
         message = str(error)
         finish(ctx.conn, job["id"], "error", message)

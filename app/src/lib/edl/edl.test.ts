@@ -55,6 +55,32 @@ describe("buildEdl", () => {
   test("an empty document has no segments and zero length", () => {
     expect(buildEdl({ blocks: [] }, BY_ID)).toEqual({ segments: [], totalMs: 0 });
   });
+
+  test("an untranscribed audio block plays its whole asset", () => {
+    const doc: EditDoc = { blocks: [{ id: "x", type: "audio", assetId: "a2" }] };
+    const edl = buildEdl(doc, BY_ID, new Map([["a2", 5000]]));
+    expect(edl.segments).toEqual([{ assetId: "a2", inMs: 0, outMs: 5000, startAtMs: 0, items: [] }]);
+    expect(edl.totalMs).toBe(5000);
+  });
+
+  test("audio blocks and transcribed words play in document order", () => {
+    const doc: EditDoc = {
+      blocks: [
+        { id: "x", type: "audio", assetId: "a2" },
+        { id: "b", type: "speech", assetId: "a1", speakerId: null, words: [{ k: "k0", w: "w0" }] },
+      ],
+    };
+    const edl = buildEdl(doc, BY_ID, new Map([["a2", 1000]]));
+    expect(edl.segments.map((s) => [s.assetId, s.inMs, s.outMs, s.startAtMs])).toEqual([
+      ["a2", 0, 1000, 0],
+      ["a1", 0, 500, 1000],
+    ]);
+  });
+
+  test("an audio block whose duration is unknown is skipped", () => {
+    const doc: EditDoc = { blocks: [{ id: "x", type: "audio", assetId: "a3" }] };
+    expect(buildEdl(doc, BY_ID).segments).toEqual([]);
+  });
 });
 
 describe("keyAtTime and timeOfKey", () => {

@@ -21,7 +21,8 @@ export async function POST(request: Request, ctx: RouteContext<"/api/projects/[i
     return Response.json({ ok: false, error: "La mejora de voz todavía se está aplicando. Espera a que termine." }, { status: 409 });
   }
 
-  const edl = buildEdl(project.doc, new Map(project.words.map((word) => [word.id, word])));
+  const durations = new Map(project.assets.flatMap((asset) => (asset.durationMs ? [[asset.id, asset.durationMs] as const] : [])));
+  const edl = buildEdl(project.doc, new Map(project.words.map((word) => [word.id, word])), durations);
   if (edl.segments.length === 0) return Response.json({ ok: false, error: "El episodio está vacío" }, { status: 400 });
 
   const segments = edl.segments.map(({ assetId, inMs, outMs }) => ({ assetId, inMs, outMs }));

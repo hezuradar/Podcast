@@ -42,3 +42,4 @@ Audio never leaves your computer,fixes,should,no,yes,from replica/fixes.md
 Upload recording chunks while recording,fixes,should,no,no,from replica/fixes.md
 Adjustable enhancement strength for everyone (default 70%),fixes,could,no,yes,no plan limits; default 70
 Chunked audio loading for long files,fixes,could,no,no,from replica/fixes.md
+Optional transcription: choose per upload, transcribe later, cancel a running one,app,should,no,yes,"untranscribed audio plays, enhances and exports whole; E2E tested"

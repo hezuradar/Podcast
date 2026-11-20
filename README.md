@@ -16,7 +16,7 @@ Todo funciona en local: el audio no sale de tu equipo, no hay cuentas ni límite
   Medido con un audio de prueba con ruido y zumbido, a la intensidad por defecto (70): el ruido en las pausas baja de −39 a −50 dB, la relación voz/ruido pasa de 18 a 33,5 dB y el volumen de −20 a −16 LUFS; la transcripción del audio mejorado sale idéntica (la voz no se deforma). La exportación usa el audio mejorado.
 - **Proyectos**: lista de episodios, crear y borrar.
 - **Subir o grabar**: arrastra un audio o vídeo (MP3, WAV, M4A, FLAC, OGG, WebM, MP4, MOV… hasta 5 GB) o graba con el micrófono.
-- **Transcripción automática** con tiempos por palabra (faster-whisper, en CPU), en español, inglés, francés, alemán, italiano o portugués.
+- **Transcripción automática** con tiempos por palabra (faster-whisper, en CPU), en español, inglés, francés, alemán, italiano o portugués. **Es opcional**: al subir o grabar puedes desmarcar «Transcribir automáticamente» (el audio se escucha, se mejora y se exporta entero, y lo transcribes más tarde con su botón **Transcribir**), y cualquier transcripción en marcha se puede **cancelar**.
 - **Editar por texto**: selecciona palabras con el ratón o con Mayús + flechas y bórralas, córtalas o pégalas en otro sitio. Deshacer y rehacer ilimitados (200 pasos).
 - **Corregir una palabra** mal transcrita sin tocar el audio.
 - **Reproducir el episodio editado** sin huecos entre cortes, con la palabra que suena resaltada; clic en una palabra para saltar ahí.
@@ -88,8 +88,8 @@ navegador ──> Next.js 16 (interfaz + API) ──> SQLite (data/app.db) <─�
 
 ```bash
 cd app
-npm test                    # 30 tests unitarios (Vitest)
-npx playwright test         # 11 pruebas de punta a punta (transcripción real, mejora de voz, grabación con micrófono simulado)
+npm test                    # 33 tests unitarios (Vitest)
+npx playwright test         # 12 pruebas de punta a punta (transcripción real y opcional, cancelación, mejora de voz, grabación con micrófono simulado)
 cd ..
 worker/.venv/Scripts/python -m unittest discover -s worker/tests   # 13 tests del worker
 ```

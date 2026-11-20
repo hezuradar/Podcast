@@ -58,6 +58,7 @@ export function transcriptToText(doc: EditDoc, words: WordMap, speakers: Readonl
   return doc.blocks
     .map((block) => {
       if (block.type === "placeholder") return `[Marcador: ${block.label}]`;
+      if (block.type === "audio") return "[Audio sin transcribir]";
       const speaker = speakers.find((s) => s.id === block.speakerId)?.label ?? "Voz";
       const text = block.words.map((ref) => ref.text ?? words.get(ref.w)?.text ?? "").join(" ");
       return `${speaker}: ${text}`;

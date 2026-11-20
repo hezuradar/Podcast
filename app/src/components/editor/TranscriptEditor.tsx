@@ -1,12 +1,12 @@
 "use client";
 
-import { useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from "react";
+import { Fragment, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
 import { Pencil, Redo2, Scissors, Trash2, Undo2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { CorrectWordPopover } from "@/components/ui/overlays";
 import { PlaceholderBlock, SpeechBlock, type DemoWord } from "@/components/editor/transcript";
 import { correctWord, cutWords, listRefs, pasteWords } from "@/lib/doc/operations";
-import type { EditDoc, WordRef } from "@/lib/doc/types";
+import type { AudioBlock, EditDoc, WordRef } from "@/lib/doc/types";
 import type { WordMap } from "@/lib/edl/edl";
 
 type Speaker = { id: string; label: string };
@@ -24,6 +24,8 @@ type TranscriptEditorProps = {
   onRedo: () => void;
   onSeekKey: (key: string) => void;
   onTogglePlay: () => void;
+  /** Renders an untranscribed audio block (with its Transcribe / Cancel controls). */
+  renderAudioBlock: (block: AudioBlock) => ReactNode;
 };
 
 const newKey = () => crypto.randomUUID();
@@ -38,7 +40,8 @@ function keyFromNode(node: Node | null): string | undefined {
 }
 
 export function TranscriptEditor(props: TranscriptEditorProps) {
-  const { doc, words, speakers, activeKey, canUndo, canRedo, onApply, onUndo, onRedo, onSeekKey, onTogglePlay } = props;
+  const { doc, words, speakers, activeKey, canUndo, canRedo, onApply, onUndo, onRedo, onSeekKey, onTogglePlay, renderAudioBlock } =
+    props;
   const [range, setRange] = useState<Range | null>(null);
   const [clipboard, setClipboard] = useState<WordRef[]>([]);
   const [announcement, setAnnouncement] = useState("");
@@ -191,6 +194,7 @@ export function TranscriptEditor(props: TranscriptEditorProps) {
       >
         {doc.blocks.map((block) => {
           if (block.type === "placeholder") return <PlaceholderBlock key={block.id} label={block.label} />;
+          if (block.type === "audio") return <Fragment key={block.id}>{renderAudioBlock(block)}</Fragment>;
           const speakerIndex = Math.max(0, speakers.findIndex((s) => s.id === block.speakerId));
           const blockWords: DemoWord[] = block.words.map((ref) => ({
             id: ref.k,

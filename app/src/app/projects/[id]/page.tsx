@@ -11,7 +11,8 @@ async function ProjectEditor({ params }: { params: Promise<{ id: string }> }) {
   const project = await getProject(id);
   if (!project) notFound();
   // A new transcript (fake upload) remounts the editor so its history starts from the new document.
-  return <Editor key={`${project.id}:${project.words[0]?.id ?? "empty"}`} project={project} />;
+  // The worker changes the document (audio added, transcript ready): remount the editor on the new version.
+  return <Editor key={`${project.id}:${project.docVersion}`} project={project} />;
 }
 
 function EditorSkeleton() {

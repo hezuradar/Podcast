@@ -12,6 +12,8 @@ import { ExportDialog } from "@/components/editor/ExportDialog";
 import { JobsPanel } from "@/components/editor/JobsPanel";
 import { TranscriptEditor } from "@/components/editor/TranscriptEditor";
 import { UploadPanel } from "@/components/editor/UploadPanel";
+import { AudioBlockCard } from "@/components/editor/AudioBlockCard";
+import type { AudioBlock } from "@/lib/doc/types";
 import { useAutosave, type SaveStatus } from "@/components/editor/useAutosave";
 import { useEditHistory } from "@/components/editor/useEditHistory";
 import { usePlayback } from "@/components/editor/usePlayback";
@@ -65,7 +67,7 @@ function PlaceholderForm({ onAdd }: { onAdd: (label: string) => void }) {
   );
 }
 
-function useRecordingUpload(projectId: string, language: Language) {
+function useRecordingUpload(projectId: string, language: Language, transcribe: boolean) {
   const recorder = useRecorder();
   const router = useRouter();
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
@@ -79,7 +81,15 @@ function useRecordingUpload(projectId: string, language: Language) {
     setUploadError(null);
     setUploadProgress(0);
     try {
-      await uploadMedia({ projectId, file, fileName: file.name, language, source: "recording", onProgress: setUploadProgress });
+      await uploadMedia({
+        projectId,
+        file,
+        fileName: file.name,
+        language,
+        source: "recording",
+        transcribe,
+        onProgress: setUploadProgress,
+      });
       router.refresh();
     } catch (caught) {
       setUploadError(caught instanceof Error ? caught.message : "No se pudo guardar la grabación");
@@ -95,7 +105,11 @@ export function Editor({ project }: { project: ProjectDetail }) {
   const history = useEditHistory(project.doc);
   const { doc } = history;
   const words = useMemo(() => new Map(project.words.map((word) => [word.id, word])), [project.words]);
-  const edl = useMemo(() => buildEdl(doc, words), [doc, words]);
+  const durations = useMemo(
+    () => new Map(project.assets.flatMap((asset) => (asset.durationMs ? [[asset.id, asset.durationMs] as const] : []))),
+    [project.assets],
+  );
+  const edl = useMemo(() => buildEdl(doc, words, durations), [doc, words, durations]);
   const [isListeningOriginal, setIsListeningOriginal] = useState(false);
   const enhanceReady = isEnhanceReady(project);
   const isEnhanced = project.enhance.enabled && enhanceReady && !isListeningOriginal;
@@ -104,7 +118,8 @@ export function Editor({ project }: { project: ProjectDetail }) {
   const saveStatus = useAutosave(project.id, doc, project.docVersion);
   const [tool, setTool] = useState<ToolId | null>(doc.blocks.length === 0 && project.assets.length === 0 ? "add" : null);
   const [language, setLanguage] = useState<Language>("es");
-  const recording = useRecordingUpload(project.id, language);
+  const [autoTranscribe, setAutoTranscribe] = useState(true);
+  const recording = useRecordingUpload(project.id, language, autoTranscribe);
   const { recorder } = recording;
 
   const hasMoved = playback.isPlaying || playback.currentMs > 0;
@@ -118,6 +133,24 @@ export function Editor({ project }: { project: ProjectDetail }) {
     const time = timeOfKey(edl, words, key);
     if (time !== null) playback.seek(time);
   };
+
+  // The untranscribed audio heard right now (to mark its block while playing).
+  const playingAudioAsset = hasMoved
+    ? edl.segments.find(
+        (s) => s.items.length === 0 && playback.currentMs >= s.startAtMs && playback.currentMs < s.startAtMs + (s.outMs - s.inMs),
+      )?.assetId
+    : undefined;
+
+  const renderAudioBlock = (block: AudioBlock) => (
+    <AudioBlockCard
+      asset={project.assets.find((asset) => asset.id === block.assetId)}
+      job={project.jobs.find(
+        (job) => job.type === "transcribe" && job.assetId === block.assetId && (job.status === "queued" || job.status === "running"),
+      )}
+      language={language}
+      isPlaying={playingAudioAsset === block.assetId}
+    />
+  );
 
   return (
     <div className="flex h-dvh flex-col">
@@ -165,7 +198,15 @@ export function Editor({ project }: { project: ProjectDetail }) {
             onClose={() => setTool(null)}
             className="absolute inset-y-0 left-(--layout-tool-rail-width) right-0 z-20 overflow-y-auto shadow-pop max-md:w-auto md:static md:shadow-none"
           >
-            {tool === "add" && <UploadPanel projectId={project.id} language={language} onLanguageChange={setLanguage} />}
+            {tool === "add" && (
+              <UploadPanel
+                projectId={project.id}
+                language={language}
+                onLanguageChange={setLanguage}
+                autoTranscribe={autoTranscribe}
+                onAutoTranscribeChange={setAutoTranscribe}
+              />
+            )}
             {tool === "placeholder" && (
               <PlaceholderForm onAdd={(label) => history.apply(appendPlaceholder(doc, crypto.randomUUID(), label))} />
             )}
@@ -217,6 +258,7 @@ export function Editor({ project }: { project: ProjectDetail }) {
                   onRedo={history.redo}
                   onSeekKey={seekKey}
                   onTogglePlay={playback.toggle}
+                  renderAudioBlock={renderAudioBlock}
                 />
               ) : (
                 !isProcessing && (

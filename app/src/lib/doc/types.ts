@@ -26,7 +26,10 @@ export type SpeechBlock = {
 
 export type PlaceholderBlock = { id: string; type: "placeholder"; label: string };
 
-export type Block = SpeechBlock | PlaceholderBlock;
+/** A whole asset that has not been transcribed (yet): it plays and exports in full. */
+export type AudioBlock = { id: string; type: "audio"; assetId: string };
+
+export type Block = SpeechBlock | PlaceholderBlock | AudioBlock;
 
 /** The edit document stored in projects.doc_json. */
 export type EditDoc = { blocks: Block[] };

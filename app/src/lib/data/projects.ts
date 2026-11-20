@@ -22,6 +22,7 @@ export type Asset = {
   hasProxy: boolean;
   /** Strength the enhanced copy was made with, or null if there is none yet. */
   enhancedStrength: number | null;
+  hasTranscript: boolean;
   durationMs: number | null;
   error: string | null;
 };
@@ -108,7 +109,13 @@ export async function getProject(id: string): Promise<ProjectDetail | null> {
   const speakers = (db.prepare("SELECT id, label FROM speakers WHERE project_id = ? ORDER BY created_at").all(id) as Row[]).map(
     (s) => ({ id: str(s.id), label: str(s.label) }),
   );
-  const assets = (db.prepare("SELECT * FROM media_assets WHERE project_id = ? ORDER BY created_at").all(id) as Row[]).map(
+  const assetRows = db
+    .prepare(
+      `SELECT a.*, EXISTS (SELECT 1 FROM transcripts t WHERE t.asset_id = a.id) AS has_transcript
+       FROM media_assets a WHERE a.project_id = ? ORDER BY a.created_at`,
+    )
+    .all(id) as Row[];
+  const assets = assetRows.map(
     (a): Asset => ({
       id: str(a.id),
       kind: str(a.kind) as Asset["kind"],
@@ -117,6 +124,7 @@ export async function getProject(id: string): Promise<ProjectDetail | null> {
       status: str(a.status) as Asset["status"],
       hasProxy: a.proxy_dir !== null,
       enhancedStrength: a.enhanced_path === null || a.enhanced_strength === null ? null : num(a.enhanced_strength),
+      hasTranscript: num(a.has_transcript) === 1,
       durationMs: a.duration_ms === null ? null : num(a.duration_ms),
       error: strOrNull(a.error),
     }),
@@ -205,6 +213,8 @@ type NewAsset = {
   originalPath: string;
   sizeBytes: number;
   language: string;
+  /** false: only prepare the audio (playable, enhanceable, exportable); transcribe later on demand. */
+  transcribe: boolean;
 };
 
 export async function projectExists(id: string): Promise<boolean> {
@@ -222,7 +232,7 @@ export async function createAssetWithJobs(input: NewAsset): Promise<string> {
     ).run(assetId, input.projectId, input.kind, input.source, input.originalName, input.originalPath, input.sizeBytes, now, now);
     db.prepare(
       "INSERT INTO jobs (id, project_id, asset_id, type, payload, created_at, updated_at) VALUES (?, ?, ?, 'transcode', ?, ?, ?)",
-    ).run(randomUUID(), input.projectId, assetId, JSON.stringify({ language: input.language }), now, now);
+    ).run(randomUUID(), input.projectId, assetId, JSON.stringify({ language: input.language, transcribe: input.transcribe }), now, now);
     db.prepare("UPDATE projects SET updated_at = ? WHERE id = ?").run(now, input.projectId);
   });
   return assetId;
@@ -281,6 +291,44 @@ export async function getExport(exportId: string): Promise<(ExportRecord & { pro
     error: strOrNull(row.error),
     outputPath: strOrNull(row.output_path),
   };
+}
+
+export type QueueResult = { ok: true } | { ok: false; reason: "not_found" | "not_ready" | "already_transcribed" | "already_queued" };
+
+/** Queues the transcription of one prepared asset that has none yet. */
+export async function queueTranscription(assetId: string, language: string): Promise<QueueResult> {
+  const db = getDb();
+  const asset = db
+    .prepare(
+      `SELECT a.project_id, a.proxy_dir, EXISTS (SELECT 1 FROM transcripts t WHERE t.asset_id = a.id) AS has_transcript
+       FROM media_assets a WHERE a.id = ?`,
+    )
+    .get(assetId) as Row | undefined;
+  if (!asset) return { ok: false, reason: "not_found" };
+  if (asset.proxy_dir === null) return { ok: false, reason: "not_ready" };
+  if (num(asset.has_transcript) === 1) return { ok: false, reason: "already_transcribed" };
+  const now = nowIso();
+  try {
+    db.prepare(
+      "INSERT INTO jobs (id, project_id, asset_id, type, payload, created_at, updated_at) VALUES (?, ?, ?, 'transcribe', ?, ?, ?)",
+    ).run(randomUUID(), str(asset.project_id), assetId, JSON.stringify({ language }), now, now);
+  } catch {
+    return { ok: false, reason: "already_queued" };
+  }
+  return { ok: true };
+}
+
+/**
+ * Cancels a queued or running transcription. A running one is stopped by the worker within a few
+ * seconds (it checks the status while transcribing); the audio stays, untranscribed.
+ */
+export async function cancelTranscription(jobId: string): Promise<boolean> {
+  const result = getDb()
+    .prepare(
+      "UPDATE jobs SET status = 'cancelled', updated_at = ? WHERE id = ? AND type = 'transcribe' AND status IN ('queued', 'running')",
+    )
+    .run(nowIso(), jobId);
+  return Number(result.changes) === 1;
 }
 
 export async function dismissJobError(projectId: string, jobId: string): Promise<void> {

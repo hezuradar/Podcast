@@ -45,6 +45,7 @@ export async function POST(request: Request, ctx: RouteContext<"/api/projects/[i
   const extension = mediaExtension(fileName);
   const language = request.headers.get("x-language");
   const source = request.headers.get("x-source") === "recording" ? "recording" : "upload";
+  const transcribe = request.headers.get("x-transcribe") !== "0";
   if (!extension) return fail(415, "Formato no admitido");
   if (!isLanguage(language)) return fail(400, "Idioma no admitido");
   if (!request.body) return fail(400, "No se recibió ningún archivo");
@@ -76,6 +77,7 @@ export async function POST(request: Request, ctx: RouteContext<"/api/projects/[i
     originalPath: relative(resolve(MEDIA_DIR), filePath).replaceAll("\\", "/"),
     sizeBytes: limit.bytes(),
     language,
+    transcribe,
   });
   return Response.json({ ok: true, assetId }, { status: 201 });
 }

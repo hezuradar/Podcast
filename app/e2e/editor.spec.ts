@@ -92,6 +92,37 @@ test("S09: enhance a noisy voice, compare with the original and export the enhan
   expect((await downloadPromise).suggestedFilename()).toBe("E2E voz ruidosa.wav");
 });
 
+test("optional transcription: upload without it, export the whole audio, start and cancel, then transcribe", async ({ page }) => {
+  await createProject(page, "E2E sin transcribir");
+  await page.getByRole("checkbox", { name: /Transcribir automáticamente/ }).uncheck();
+  await page.locator('input[type="file"]').setInputFiles(VOICE);
+
+  const audioBlock = page.getByRole("region", { name: /Audio sin transcribir/ });
+  const transcribeButton = audioBlock.getByRole("button", { name: "Transcribir", exact: true });
+  await expect(transcribeButton).toBeEnabled({ timeout: 60_000 });
+  await expect(page.getByText(/0:00 \/ 0:1\d/)).toBeVisible(); // the whole ~11 s audio is in the episode
+
+  // The untranscribed audio exports whole.
+  await page.getByRole("button", { name: "Exportar" }).click();
+  const downloadPromise = page.waitForEvent("download", { timeout: 60_000 });
+  await page.getByRole("button", { name: "Audio MP3" }).click();
+  expect((await downloadPromise).suggestedFilename()).toBe("E2E sin transcribir.mp3");
+  await page.keyboard.press("Escape");
+
+  // Start a transcription and cancel it: the audio stays, untranscribed.
+  await transcribeButton.click();
+  const cancelButton = audioBlock.getByRole("button", { name: "Cancelar transcripción" });
+  await expect(cancelButton).toBeVisible();
+  await cancelButton.click();
+  await expect(audioBlock.getByRole("button", { name: "Transcribir", exact: true })).toBeVisible({ timeout: 30_000 });
+  await expect(transcript(page)).not.toContainText("almacenes");
+
+  // Transcribe it for real: the block becomes editable text in the same place.
+  await audioBlock.getByRole("button", { name: "Transcribir", exact: true }).click();
+  await expect(transcript(page)).toContainText("almacenes", { timeout: TRANSCRIBE_TIMEOUT });
+  await expect(page.getByRole("region", { name: /Audio sin transcribir/ })).toHaveCount(0);
+});
+
 test("recorded WebM/Opus uploads are processed like any upload", async ({ page, request }) => {
   const id = await createProject(page, "E2E webm");
   const response = await request.post(`/api/projects/${id}/assets`, {

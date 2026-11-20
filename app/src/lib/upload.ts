@@ -6,17 +6,20 @@ type UploadOptions = {
   fileName: string;
   language: Language;
   source: "upload" | "recording";
+  /** false: prepare the audio only; it can be transcribed later. */
+  transcribe: boolean;
   onProgress?: (fraction: number) => void;
 };
 
 /** Streams a file to the server with upload progress (fetch has no upload progress, XHR does). */
-export function uploadMedia({ projectId, file, fileName, language, source, onProgress }: UploadOptions): Promise<string> {
+export function uploadMedia({ projectId, file, fileName, language, source, transcribe, onProgress }: UploadOptions): Promise<string> {
   return new Promise((resolvePromise, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open("POST", `/api/projects/${encodeURIComponent(projectId)}/assets`);
     xhr.setRequestHeader("x-file-name", encodeURIComponent(fileName));
     xhr.setRequestHeader("x-language", language);
     xhr.setRequestHeader("x-source", source);
+    xhr.setRequestHeader("x-transcribe", transcribe ? "1" : "0");
     if (file.type) xhr.setRequestHeader("content-type", file.type);
     xhr.upload.onprogress = (event) => {
       if (event.lengthComputable) onProgress?.(event.loaded / event.total);

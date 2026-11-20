@@ -104,10 +104,45 @@ def transcode(ctx: Context, job: sqlite3.Row, payload: dict) -> None:
            updated_at = ? WHERE id = ?""",
         (ctx.relative(master), ctx.relative(proxy), duration_ms, sample_rate, channels, ctx.now(), asset["id"]),
     )
-    queue_job(ctx, asset["project_id"], asset["id"], "transcribe", {"language": payload.get("language", "es")})
+    add_audio_block(ctx, asset["project_id"], asset["id"], duration_ms)
+    if payload.get("transcribe", True):
+        queue_job(ctx, asset["project_id"], asset["id"], "transcribe", {"language": payload.get("language", "es")})
     enabled, _strength = project_enhance(ctx, asset["project_id"])
     if enabled:
         queue_job(ctx, asset["project_id"], asset["id"], "enhance", {})
+
+
+def add_audio_block(ctx: Context, project_id: str, asset_id: str, duration_ms: int) -> None:
+    """Puts the prepared audio in the episode as a whole, untranscribed block (playable and exportable
+    right away) and marks it ready. A later transcription replaces the block in place."""
+    now = ctx.now()
+    ctx.conn.execute("BEGIN IMMEDIATE")
+    try:
+        project = ctx.conn.execute("SELECT doc_json, duration_ms FROM projects WHERE id = ?", (project_id,)).fetchone()
+        doc = json.loads(project["doc_json"])
+        blocks = doc.setdefault("blocks", [])
+        if not any(block.get("assetId") == asset_id for block in blocks):
+            blocks.append({"id": str(uuid.uuid4()), "type": "audio", "assetId": asset_id})
+            ctx.conn.execute(
+                """UPDATE projects SET doc_json = ?, doc_version = doc_version + 1, duration_ms = ?, updated_at = ?
+                   WHERE id = ?""",
+                (json.dumps(doc), (project["duration_ms"] or 0) + duration_ms, now, project_id),
+            )
+        ctx.conn.execute("UPDATE media_assets SET status = 'ready', updated_at = ? WHERE id = ?", (now, asset_id))
+        ctx.conn.execute("COMMIT")
+    except Exception:
+        ctx.conn.execute("ROLLBACK")
+        raise
+
+
+class JobCancelled(Exception):
+    """The user cancelled the job while it ran: stop quietly, keep everything as it was."""
+
+
+def raise_if_cancelled(ctx: Context, job_id: str) -> None:
+    row = ctx.conn.execute("SELECT status FROM jobs WHERE id = ?", (job_id,)).fetchone()
+    if row is None or row["status"] == "cancelled":
+        raise JobCancelled()
 
 
 def project_enhance(ctx: Context, project_id: str) -> tuple[bool, int]:
@@ -177,14 +212,17 @@ def transcribe(ctx: Context, job: sqlite3.Row, payload: dict) -> None:
     language = payload.get("language", "es")
     duration_s = max((asset["duration_ms"] or 1) / 1000, 1)
     samples = load_audio_16k(ctx.path(asset["proxy_dir"]))
+    raise_if_cancelled(ctx, job["id"])
     segments, _info = whisper().transcribe(samples, language=language, word_timestamps=True, vad_filter=True)
     collected = []
     for segment in segments:  # lazy generator: transcription happens while iterating
+        raise_if_cancelled(ctx, job["id"])  # the user can stop it at any moment
         collected.append(segment)
         ctx.progress(job["id"], segment.end / duration_s)
     words = asr_words(collected)
     if not words:
         raise JobError("No se ha detectado voz en el audio")
+    raise_if_cancelled(ctx, job["id"])
     save_transcript(ctx, asset, language, words)
 
 
@@ -221,13 +259,19 @@ def save_transcript(ctx: Context, asset: sqlite3.Row, language: str, words: list
             refs.append({"k": str(uuid.uuid4()), "w": word_id})
         project = ctx.conn.execute("SELECT doc_json, duration_ms FROM projects WHERE id = ?", (project_id,)).fetchone()
         doc = json.loads(project["doc_json"])
-        doc.setdefault("blocks", []).append(
-            {"id": str(uuid.uuid4()), "type": "speech", "assetId": asset["id"], "speakerId": speaker_id, "words": refs}
+        speech = {"id": str(uuid.uuid4()), "type": "speech", "assetId": asset["id"], "speakerId": speaker_id, "words": refs}
+        blocks = doc.setdefault("blocks", [])
+        # Replace the untranscribed audio block of this asset in place (keeps its position in the episode).
+        audio_index = next(
+            (i for i, block in enumerate(blocks) if block.get("type") == "audio" and block.get("assetId") == asset["id"]), None
         )
+        if audio_index is None:
+            blocks.append(speech)
+        else:
+            blocks[audio_index] = speech
         ctx.conn.execute(
-            """UPDATE projects SET doc_json = ?, doc_version = doc_version + 1, duration_ms = ?, updated_at = ?
-               WHERE id = ?""",
-            (json.dumps(doc), (project["duration_ms"] or 0) + (asset["duration_ms"] or 0), now, project_id),
+            "UPDATE projects SET doc_json = ?, doc_version = doc_version + 1, updated_at = ? WHERE id = ?",
+            (json.dumps(doc), now, project_id),
         )
         ctx.conn.execute("UPDATE media_assets SET status = 'ready', updated_at = ? WHERE id = ?", (now, asset["id"]))
         ctx.conn.execute("COMMIT")

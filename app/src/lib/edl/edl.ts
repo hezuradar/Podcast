@@ -1,4 +1,3 @@
-import { listRefs } from "../doc/operations";
 import type { EditDoc, Word, WordRef } from "../doc/types";
 
 /** A continuous range of one source asset, placed at `startAtMs` on the edited timeline. */
@@ -20,26 +19,40 @@ const lengthOf = (segment: Segment) => segment.outMs - segment.inMs;
 /**
  * Turns the edit document into the list of audio ranges to play. Words that are next to each other
  * both in the document and in the source audio are merged into one range, so the pause between them
- * is kept; any cut or move starts a new range. The player and the export renderer share this.
+ * is kept; any cut or move starts a new range. An untranscribed audio block plays its whole asset
+ * (its length comes from `durations`). The player and the export renderer share this.
  */
-export function buildEdl(doc: EditDoc, words: WordMap): Edl {
+export function buildEdl(doc: EditDoc, words: WordMap, durations: ReadonlyMap<string, number> = new Map()): Edl {
   const segments: Segment[] = [];
   let lastIdx = -1;
-
-  for (const ref of listRefs(doc)) {
-    const word = words.get(ref.w);
-    if (!word) continue;
+  const nextStart = () => {
     const current = segments.at(-1);
-    const item = { k: ref.k, w: ref.w };
-    const continues = current !== undefined && current.assetId === word.assetId && word.idx === lastIdx + 1;
+    return current ? current.startAtMs + lengthOf(current) : 0;
+  };
 
-    if (continues) {
-      segments[segments.length - 1] = { ...current, outMs: word.endMs, items: [...current.items, item] };
-    } else {
-      const startAtMs = current ? current.startAtMs + lengthOf(current) : 0;
-      segments.push({ assetId: word.assetId, inMs: word.startMs, outMs: word.endMs, startAtMs, items: [item] });
+  for (const block of doc.blocks) {
+    if (block.type === "audio") {
+      const duration = durations.get(block.assetId) ?? 0;
+      if (duration > 0) segments.push({ assetId: block.assetId, inMs: 0, outMs: duration, startAtMs: nextStart(), items: [] });
+      lastIdx = -1;
+      continue;
     }
-    lastIdx = word.idx;
+    if (block.type !== "speech") continue;
+    for (const ref of block.words) {
+      const word = words.get(ref.w);
+      if (!word) continue;
+      const current = segments.at(-1);
+      const item = { k: ref.k, w: ref.w };
+      const continues =
+        current !== undefined && current.items.length > 0 && current.assetId === word.assetId && word.idx === lastIdx + 1;
+
+      if (continues) {
+        segments[segments.length - 1] = { ...current, outMs: word.endMs, items: [...current.items, item] };
+      } else {
+        segments.push({ assetId: word.assetId, inMs: word.startMs, outMs: word.endMs, startAtMs: nextStart(), items: [item] });
+      }
+      lastIdx = word.idx;
+    }
   }
 
   const last = segments.at(-1);

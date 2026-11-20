@@ -25,6 +25,7 @@ const blockSchema = z.discriminatedUnion("type", [
     words: z.array(wordRefSchema).max(100_000),
   }),
   z.object({ id: z.string().min(1).max(80), type: z.literal("placeholder"), label: z.string().min(1).max(200) }),
+  z.object({ id: z.string().min(1).max(80), type: z.literal("audio"), assetId: z.string().min(1).max(80) }),
 ]);
 
 const docSchema = z.object({ blocks: z.array(blockSchema).max(10_000) });
